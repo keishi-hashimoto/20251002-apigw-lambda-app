@@ -50,10 +50,25 @@ def valid_body():
 
 @pytest.fixture(
     scope="session",
-    params=[1, False],
+    params=[
+        1,
+        False,
+        json.dumps({"email": "bob@localhost.com"}),
+        json.dumps({"username": "bob"}),
+        json.dumps(
+            {"username": "bob", "email": "bob@localhost.com", "password": "..."}
+        ),
+        json.dumps({"username": 1, "email": "bob@localhost.com"}),
+        json.dumps({"username": "bob", "email": "boblocalhost.com"}),
+    ],
     ids=[
         "invalid type (int)",
         "invalid type (bool)",
+        "username is missing",
+        "email is missing",
+        "additional field (password)",
+        "field type is invald",
+        "email format is invalid",
     ],
 )
 def invalid_body(request):
@@ -77,7 +92,9 @@ def test_ok(valid_event):
     ) == LambdaAPIGWResponse(
         cookies=[],
         headers={"Content-Type": "application/json"},
-        body=json.dumps({"message": "OK"}),
+        body=json.dumps(
+            {"message": "OK"} | {"user_info": json.loads(valid_event["body"])}
+        ),
         isBase64Encoded=False,
         statusCode=200,
     )
