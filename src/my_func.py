@@ -41,4 +41,7 @@ def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
 
     print(user_info)
 
-    return DEFAULT_RESUPONSE(statusCode=200, body=json.dumps({"message": "OK"}))
+    return DEFAULT_RESUPONSE(
+        statusCode=200,
+        body=json.dumps({"message": "OK", "user_info": user_info.model_dump()}),
+    )
