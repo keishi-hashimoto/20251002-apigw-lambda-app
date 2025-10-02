@@ -1,6 +1,6 @@
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.parser import parse
-from aws_lambda_powertools.utilities.parser.models import APIGatewayProxyEventV2Model
+from aws_lambda_powertools.utilities.parser.envelopes import ApiGatewayV2Envelope
 from pydantic import ValidationError, BaseModel, ConfigDict, EmailStr
 from typing import TypedDict, Literal
 import json
@@ -32,14 +32,13 @@ DEFAULT_RESUPONSE = partial(
 
 def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
     try:
-        parsed_event = parse(event=event, model=APIGatewayProxyEventV2Model)
+        user_info = parse(event=event, model=UserInfo, envelope=ApiGatewayV2Envelope)
     except ValidationError as e:
         print(e.json())
         return DEFAULT_RESUPONSE(
             body=json.dumps({"error": "Bad Request"}), statusCode=400
         )
 
-    body = parsed_event.body
-    print(body)
+    print(user_info)
 
     return DEFAULT_RESUPONSE(statusCode=200, body=json.dumps({"message": "OK"}))
