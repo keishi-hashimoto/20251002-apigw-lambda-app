@@ -1,0 +1,45 @@
+name: Deploy
+run-name: Deploy
+on:
+  push:
+    branches:
+      - main
+defaults:
+  run:
+    shell: bash
+permissions: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Set up mise
+        uses: jdx/mise-action@v3
+      - name: Install python
+        run: uv python install
+      - name: Make requirements
+        run: uv pip compile pyproject.toml -o requirements.txt
+      - name: Make artifacts directory
+        run: mkdir dist
+      - name: Copy source code
+        run: cp -r src/* dist/
+      - name: Install dependencies
+        run: uv pip install -r requirements.txt --target dist/
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Deploy to AWS
+        uses: aws-actions/aws-lambda-deploy@v1
+        with:
+          function-name: ${{ secrets.AWS_LAMBDA_FUNCTION_NAME }}
+          code-artifacts-dir: dist
+          handler: my_func.my_handler
+          runtime: python3.13
