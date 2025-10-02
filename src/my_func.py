@@ -1,10 +1,17 @@
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.parser import parse
 from aws_lambda_powertools.utilities.parser.models import APIGatewayProxyEventV2Model
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel, ConfigDict, EmailStr
 from typing import TypedDict, Literal
 import json
 from functools import partial
+
+
+class UserInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    username: str
+    email: EmailStr
 
 
 class LambdaAPIGWResponse(TypedDict):
