@@ -6,11 +6,17 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "aws-lambda-powertools[parser]>=3.20.0",
+    "boto3>=1.40.45",
     "pydantic[email]>=2.11.9",
 ]
 
 [dependency-groups]
 dev = [
+    "boto3-stubs-custom",
+    "moto[dynamodb]>=5.1.13",
     "mypy>=1.18.2",
     "pytest>=8.4.2",
 ]
+
+[tool.uv.sources]
+boto3-stubs-custom = { path = "vendored/boto3_stubs_custom-1.40.45-py3-none-any.whl" }

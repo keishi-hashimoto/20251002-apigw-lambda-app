@@ -1,7 +1,12 @@
-from my_func import my_handler, LambdaAPIGWResponse
+from my_func import my_handler, LambdaAPIGWResponse, db_client
 import json
 import pytest
 from datetime import datetime
+from moto.core.models import patch_client
+
+from time import time
+from helpers import get_value_from_attribute_type_def
+from os import environ
 
 
 @pytest.fixture(scope="session")
@@ -85,22 +90,37 @@ def invalid_event(dummy_event_frame, invalid_body):
     return dummy_event_frame | {"body": invalid_body}
 
 
-def test_ok(valid_event):
+def test_ok(valid_event, dummy_table):
+    patch_client(db_client)
+    body = json.loads(valid_event["body"])
+    username = body["username"]
+    email = body["email"]
+    started = time()
+
     assert my_handler(
         event=valid_event,
         context="",  # type: ignore
     ) == LambdaAPIGWResponse(
         cookies=[],
         headers={"Content-Type": "application/json"},
-        body=json.dumps(
-            {"message": "OK"} | {"user_info": json.loads(valid_event["body"])}
-        ),
+        body=json.dumps({"message": "OK"} | {"user_info": body}),
         isBase64Encoded=False,
         statusCode=200,
     )
+    ended = time()
+
+    users = db_client.scan(TableName=dummy_table)["Items"]
+
+    assert len(users) == 1
+    user = users[0]
+    print(user["accepted"])
+    assert get_value_from_attribute_type_def(user["username"]) == username
+    assert get_value_from_attribute_type_def(user["email"]) == email
+    assert started < get_value_from_attribute_type_def(user["accepted"]) < ended  # type: ignore
 
 
-def test_ng(invalid_event):
+def test_invalid_event(invalid_event, dummy_table):
+    patch_client(db_client)
     assert my_handler(
         event=invalid_event,
         context="",  # type: ignore
@@ -111,3 +131,26 @@ def test_ng(invalid_event):
         isBase64Encoded=False,
         statusCode=400,
     )
+
+    users = db_client.scan(TableName=dummy_table)["Items"]
+
+    assert len(users) == 0
+
+
+def test_valid_tablename(valid_event, dummy_table):
+    environ["TABLENAME"] = f"{dummy_table}_dummy"
+    patch_client(db_client)
+
+    try:
+        assert my_handler(
+            event=valid_event,
+            context="",  # type: ignore
+        ) == LambdaAPIGWResponse(
+            cookies=[],
+            headers={"Content-Type": "application/json"},
+            body=json.dumps({"error": "Internal Server Error"}),
+            isBase64Encoded=False,
+            statusCode=400,
+        )
+    finally:
+        environ["TABLENAME"] = dummy_table

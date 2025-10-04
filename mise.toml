@@ -5,3 +5,7 @@ actionlint = "1.7.7"
 
 [env]
 PYTHONPATH = "./src"
+
+[tasks.pytest]
+run = "uv run pytest"
+env = { '_'.file = ".env.test" }
