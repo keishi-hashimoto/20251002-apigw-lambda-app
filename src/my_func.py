@@ -1,3 +1,4 @@
+from boto3 import client
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.parser import parse
 from aws_lambda_powertools.utilities.parser.envelopes import ApiGatewayV2Envelope
@@ -5,6 +6,8 @@ from pydantic import ValidationError, BaseModel, ConfigDict, EmailStr
 from typing import TypedDict, Literal
 import json
 from functools import partial
+from os import environ
+from time import time
 
 
 class UserInfo(BaseModel):
@@ -29,6 +32,25 @@ DEFAULT_RESUPONSE = partial(
     isBase64Encoded=False,
 )
 
+# TODO: Config 設定
+db_client = client("dynamodb")
+
+
+def add_user(username: str, email: EmailStr):
+    print("Register user")
+    tablename = environ["TABLENAME"]
+    db_client.put_item(
+        TableName=tablename,
+        Item={
+            "username": {"S": username},
+            "email": {"S": email},
+            # dynamodb では日時型の値は扱えないため、epoch 秒で保持する
+            "accepted": {"N": f"{time()}"},
+            # TODO: 特典の DL URL
+        },
+    )
+    print("User registered")
+
 
 def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
     try:
@@ -40,6 +62,14 @@ def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
         )
 
     print(user_info)
+
+    try:
+        add_user(username=user_info.username, email=user_info.email)
+    except Exception as e:
+        print(f"failed to register user: {e}")
+        return DEFAULT_RESUPONSE(
+            body=json.dumps({"error": "Internal Server Error"}), statusCode=400
+        )
 
     return DEFAULT_RESUPONSE(
         statusCode=200,
