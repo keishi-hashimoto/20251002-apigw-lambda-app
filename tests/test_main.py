@@ -6,6 +6,7 @@ from moto.core.models import patch_client
 
 from time import time
 from helpers import get_value_from_attribute_type_def
+from os import environ
 
 
 @pytest.fixture(scope="session")
@@ -118,7 +119,7 @@ def test_ok(valid_event, dummy_table):
     assert started < get_value_from_attribute_type_def(user["accepted"]) < ended  # type: ignore
 
 
-def test_ng(invalid_event, dummy_table):
+def test_invalid_event(invalid_event, dummy_table):
     patch_client(db_client)
     assert my_handler(
         event=invalid_event,
@@ -134,3 +135,22 @@ def test_ng(invalid_event, dummy_table):
     users = db_client.scan(TableName=dummy_table)["Items"]
 
     assert len(users) == 0
+
+
+def test_valid_tablename(valid_event, dummy_table):
+    environ["TABLENAME"] = f"{dummy_table}_dummy"
+    patch_client(db_client)
+
+    try:
+        assert my_handler(
+            event=valid_event,
+            context="",  # type: ignore
+        ) == LambdaAPIGWResponse(
+            cookies=[],
+            headers={"Content-Type": "application/json"},
+            body=json.dumps({"error": "Internal Server Error"}),
+            isBase64Encoded=False,
+            statusCode=400,
+        )
+    finally:
+        environ["TABLENAME"] = dummy_table
