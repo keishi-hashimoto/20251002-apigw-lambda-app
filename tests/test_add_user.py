@@ -18,7 +18,6 @@ def test_ok(dummy_table):
 
     assert len(users) == 1
     user = users[0]
-    print(user["accepted"])
     assert get_value_from_attribute_type_def(user["username"]) == username
     assert get_value_from_attribute_type_def(user["email"]) == email
     assert started < get_value_from_attribute_type_def(user["accepted"]) < ended  # type: ignore
