@@ -1,4 +1,5 @@
 from boto3 import client
+from botocore.config import Config
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.parser import parse
 from aws_lambda_powertools.utilities.parser.envelopes import ApiGatewayV2Envelope
@@ -33,6 +34,15 @@ DEFAULT_RESUPONSE = partial(
 )
 
 # TODO: Config 設定
+config = Config(
+    # Dynamo DB にデフォルトのタイムアウト値 (60 秒) は過剰なので明示的に設定する
+    connect_timeout=1,
+    read_timeout=1,
+    retries={
+        "mode": "standard",
+        "max_attempts": 2,
+    },
+)
 db_client = client("dynamodb")
 
 
