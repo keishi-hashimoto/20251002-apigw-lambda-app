@@ -110,7 +110,7 @@ def lambda_context():
     )
 
 
-def test_ok(valid_event, dummy_table):
+def test_ok(valid_event, dummy_table, lambda_context):
     patch_client(db_client)
     body = json.loads(valid_event["body"])
     username = body["username"]
@@ -119,7 +119,7 @@ def test_ok(valid_event, dummy_table):
 
     assert my_handler(
         event=valid_event,
-        context="",  # type: ignore
+        context=lambda_context,
     ) == LambdaAPIGWResponse(
         cookies=[],
         headers={"Content-Type": "application/json"},
@@ -139,11 +139,11 @@ def test_ok(valid_event, dummy_table):
     assert started < get_value_from_attribute_type_def(user["accepted"]) < ended  # type: ignore
 
 
-def test_invalid_event(invalid_event, dummy_table):
+def test_invalid_event(invalid_event, dummy_table, lambda_context):
     patch_client(db_client)
     assert my_handler(
         event=invalid_event,
-        context="",  # type: ignore
+        context=lambda_context,
     ) == LambdaAPIGWResponse(
         cookies=[],
         headers={"Content-Type": "application/json"},
@@ -157,14 +157,14 @@ def test_invalid_event(invalid_event, dummy_table):
     assert len(users) == 0
 
 
-def test_valid_tablename(valid_event, dummy_table):
+def test_valid_tablename(valid_event, dummy_table, lambda_context):
     environ["TABLENAME"] = f"{dummy_table}_dummy"
     patch_client(db_client)
 
     try:
         assert my_handler(
             event=valid_event,
-            context="",  # type: ignore
+            context=lambda_context,
         ) == LambdaAPIGWResponse(
             cookies=[],
             headers={"Content-Type": "application/json"},
