@@ -7,6 +7,7 @@ from moto.core.models import patch_client
 from time import time
 from helpers import get_value_from_attribute_type_def
 from os import environ
+from dataclasses import dataclass
 
 
 @pytest.fixture(scope="session")
@@ -90,7 +91,26 @@ def invalid_event(dummy_event_frame, invalid_body):
     return dummy_event_frame | {"body": invalid_body}
 
 
-def test_ok(valid_event, dummy_table):
+@pytest.fixture(scope="session")
+def lambda_context():
+    # aws_powertools の LambdaContext はコンストラクタを持たないので、型定義は自作する必要がある
+    @dataclass
+    class LambdaContext:
+        # ログ出力用のダミーのため、最低限必要なフィールドのみを定義する
+        function_name: str
+        invoked_function_arn: str
+        memory_limit_in_mb: int
+        aws_request_id: str
+
+    return LambdaContext(
+        function_name="my_func",
+        invoked_function_arn="*****",
+        memory_limit_in_mb=1,
+        aws_request_id="++++",
+    )
+
+
+def test_ok(valid_event, dummy_table, lambda_context):
     patch_client(db_client)
     body = json.loads(valid_event["body"])
     username = body["username"]
@@ -99,7 +119,7 @@ def test_ok(valid_event, dummy_table):
 
     assert my_handler(
         event=valid_event,
-        context="",  # type: ignore
+        context=lambda_context,
     ) == LambdaAPIGWResponse(
         cookies=[],
         headers={"Content-Type": "application/json"},
@@ -119,11 +139,11 @@ def test_ok(valid_event, dummy_table):
     assert started < get_value_from_attribute_type_def(user["accepted"]) < ended  # type: ignore
 
 
-def test_invalid_event(invalid_event, dummy_table):
+def test_invalid_event(invalid_event, dummy_table, lambda_context):
     patch_client(db_client)
     assert my_handler(
         event=invalid_event,
-        context="",  # type: ignore
+        context=lambda_context,
     ) == LambdaAPIGWResponse(
         cookies=[],
         headers={"Content-Type": "application/json"},
@@ -137,14 +157,14 @@ def test_invalid_event(invalid_event, dummy_table):
     assert len(users) == 0
 
 
-def test_valid_tablename(valid_event, dummy_table):
+def test_valid_tablename(valid_event, dummy_table, lambda_context):
     environ["TABLENAME"] = f"{dummy_table}_dummy"
     patch_client(db_client)
 
     try:
         assert my_handler(
             event=valid_event,
-            context="",  # type: ignore
+            context=lambda_context,
         ) == LambdaAPIGWResponse(
             cookies=[],
             headers={"Content-Type": "application/json"},

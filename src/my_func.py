@@ -1,5 +1,7 @@
 from boto3 import client
 from botocore.config import Config
+from botocore.exceptions import ClientError
+from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.parser import parse
 from aws_lambda_powertools.utilities.parser.envelopes import ApiGatewayV2Envelope
@@ -9,6 +11,8 @@ import json
 from functools import partial
 from os import environ
 from time import time
+
+logger = Logger()
 
 
 class UserInfo(BaseModel):
@@ -33,7 +37,6 @@ DEFAULT_RESUPONSE = partial(
     isBase64Encoded=False,
 )
 
-# TODO: Config 設定
 config = Config(
     # Dynamo DB にデフォルトのタイムアウト値 (60 秒) は過剰なので明示的に設定する
     connect_timeout=1,
@@ -47,7 +50,7 @@ db_client = client("dynamodb")
 
 
 def add_user(username: str, email: EmailStr):
-    print("Register user")
+    logger.info("Register user")
     tablename = environ["TABLENAME"]
     db_client.put_item(
         TableName=tablename,
@@ -59,26 +62,33 @@ def add_user(username: str, email: EmailStr):
             # TODO: 特典の DL URL
         },
     )
-    print("User registered")
+    logger.info("User registered")
 
 
+@logger.inject_lambda_context
 def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
     try:
         user_info = parse(event=event, model=UserInfo, envelope=ApiGatewayV2Envelope)
     except ValidationError as e:
-        print(e.json())
+        logger.error(e.json())
         return DEFAULT_RESUPONSE(
             body=json.dumps({"error": "Bad Request"}), statusCode=400
         )
 
-    print(user_info)
+    logger.info(user_info)
 
     try:
         add_user(username=user_info.username, email=user_info.email)
-    except Exception as e:
-        print(f"failed to register user: {e}")
+    except ClientError as e:
+        logger.error(f"failed to register user: {e.response}")
         return DEFAULT_RESUPONSE(
-            body=json.dumps({"error": "Internal Server Error"}), statusCode=400
+            body=json.dumps({"error": "Internal Server Error"}),
+            statusCode=e.response["ResponseMetadata"]["HTTPStatusCode"],  # type: ignore
+        )
+    except Exception as e:
+        logger.error(f"failed to register user: {e}")
+        return DEFAULT_RESUPONSE(
+            body=json.dumps({"error": "Internal Server Error"}), statusCode=500
         )
 
     return DEFAULT_RESUPONSE(
