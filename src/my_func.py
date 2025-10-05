@@ -1,7 +1,7 @@
 from boto3 import client
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from aws_lambda_powertools import Logger
+from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.parser import parse
 from aws_lambda_powertools.utilities.parser.envelopes import ApiGatewayV2Envelope
@@ -13,6 +13,7 @@ from os import environ
 from time import time
 
 logger = Logger()
+tracer = Tracer(service="20251002-apigw-lambda-app")
 
 
 class UserInfo(BaseModel):
@@ -49,6 +50,7 @@ config = Config(
 db_client = client("dynamodb")
 
 
+@tracer.capture_method
 def add_user(username: str, email: EmailStr):
     logger.info("Register user")
     tablename = environ["TABLENAME"]
@@ -65,6 +67,7 @@ def add_user(username: str, email: EmailStr):
     logger.info("User registered")
 
 
+@tracer.capture_lambda_handler
 @logger.inject_lambda_context
 def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
     try:
