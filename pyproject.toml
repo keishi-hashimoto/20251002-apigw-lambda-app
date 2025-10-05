@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "aws-lambda-powertools[parser]>=3.20.0",
+    "aws-lambda-powertools[parser,tracer]>=3.20.0",
     "boto3>=1.40.45",
     "pydantic[email]>=2.11.9",
 ]
