@@ -7,6 +7,7 @@ from moto.core.models import patch_client
 from time import time
 from helpers import get_value_from_attribute_type_def
 from os import environ
+from dataclasses import dataclass
 
 
 @pytest.fixture(scope="session")
@@ -88,6 +89,25 @@ def valid_event(dummy_event_frame, valid_body):
 @pytest.fixture(scope="session")
 def invalid_event(dummy_event_frame, invalid_body):
     return dummy_event_frame | {"body": invalid_body}
+
+
+@pytest.fixture(scope="session")
+def lambda_context():
+    # aws_powertools の LambdaContext はコンストラクタを持たないので、型定義は自作する必要がある
+    @dataclass
+    class LambdaContext:
+        # ログ出力用のダミーのため、最低限必要なフィールドのみを定義する
+        function_name: str
+        invoked_function_arn: str
+        memory_limit_in_mb: int
+        aws_request_id: str
+
+    return LambdaContext(
+        function_name="my_func",
+        invoked_function_arn="*****",
+        memory_limit_in_mb=1,
+        aws_request_id="++++",
+    )
 
 
 def test_ok(valid_event, dummy_table):
