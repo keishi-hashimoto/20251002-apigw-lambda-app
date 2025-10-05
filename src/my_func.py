@@ -1,5 +1,6 @@
 from boto3 import client
 from botocore.config import Config
+from botocore.exceptions import ClientError
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.parser import parse
@@ -78,6 +79,12 @@ def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
 
     try:
         add_user(username=user_info.username, email=user_info.email)
+    except ClientError as e:
+        logger.error(f"failed to register user: {e.response}")
+        return DEFAULT_RESUPONSE(
+            body=json.dumps({"error": "Internal Server Error"}),
+            statusCode=e.response["ResponseMetadata"]["HTTPStatusCode"],  # type: ignore
+        )
     except Exception as e:
         logger.error(f"failed to register user: {e}")
         return DEFAULT_RESUPONSE(
