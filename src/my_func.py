@@ -88,7 +88,7 @@ def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
     except Exception as e:
         logger.error(f"failed to register user: {e}")
         return DEFAULT_RESUPONSE(
-            body=json.dumps({"error": "Internal Server Error"}), statusCode=400
+            body=json.dumps({"error": "Internal Server Error"}), statusCode=500
         )
 
     return DEFAULT_RESUPONSE(
