@@ -105,7 +105,7 @@ def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
     email = user_info.email
 
     try:
-        presinged_url = generate_presigned_url()
+        presigned_url = generate_presigned_url()
     except ClientError as e:
         logger.error(f"failed to generate presigned url: {e.response}")
         return DEFAULT_RESUPONSE(
@@ -119,7 +119,7 @@ def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
         )
 
     try:
-        send_email(username, email, presinged_url)
+        send_email(username, email, presigned_url)
     except ClientError as e:
         logger.error(f"failed to send email: {e.response}")
         return DEFAULT_RESUPONSE(
@@ -136,7 +136,7 @@ def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
         add_user(
             username=user_info.username,
             email=user_info.email,
-            presigned_url=presinged_url,
+            presigned_url=presigned_url,
         )
     except ClientError as e:
         logger.error(f"failed to register user: {e.response}")
