@@ -101,7 +101,7 @@ dependencies = [
     { name = "types-s3transfer" },
 ]
 wheels = [
-    { filename = "boto3_stubs_custom-1.40.45-py3-none-any.whl", hash = "sha256:aba258f3e03de51ef08e939a10b850546cfb360f22de5f9592b985b42456d936" },
+    { filename = "boto3_stubs_custom-1.40.45-py3-none-any.whl", hash = "sha256:b71cbaa976362471e413453657ce32441f8aedee3036c060815e66da5f951f2c" },
 ]
 
 [package.metadata]
