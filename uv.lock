@@ -30,7 +30,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "boto3-stubs-custom", path = "vendored/boto3_stubs_custom-1.40.45-py3-none-any.whl" },
-    { name = "moto", extras = ["dynamodb"], specifier = ">=5.1.13" },
+    { name = "moto", extras = ["dynamodb", "ses"], specifier = ">=5.1.13" },
     { name = "mypy", specifier = ">=1.18.2" },
     { name = "pytest", specifier = ">=8.4.2" },
 ]
