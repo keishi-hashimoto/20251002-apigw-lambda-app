@@ -25,3 +25,8 @@ def dummy_table(db_client):
         BillingMode="PAY_PER_REQUEST",
     )
     return tablename
+
+
+@fixture(scope="session")
+def presigned_url():
+    return "https://dummy-bucket.s3.amazonaws.com/dummy.html?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=dummy%2F20251006%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251006T032350Z&X-Amz-Expires=600&X-Amz-SignedHeaders=host&X-Amz-Signature=*****************"
