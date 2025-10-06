@@ -8,6 +8,7 @@ from time import time
 from helpers import get_value_from_attribute_type_def
 from os import environ
 from dataclasses import dataclass
+from unittest.mock import patch
 
 
 @pytest.fixture(scope="session")
@@ -110,33 +111,37 @@ def lambda_context():
     )
 
 
-def test_ok(valid_event, dummy_table, lambda_context):
+def test_ok(valid_event, dummy_table, lambda_context, presigned_url):
     patch_client(db_client)
     body = json.loads(valid_event["body"])
     username = body["username"]
     email = body["email"]
     started = time()
 
-    assert my_handler(
-        event=valid_event,
-        context=lambda_context,
-    ) == LambdaAPIGWResponse(
-        cookies=[],
-        headers={"Content-Type": "application/json"},
-        body=json.dumps({"message": "OK"} | {"user_info": body}),
-        isBase64Encoded=False,
-        statusCode=200,
-    )
-    ended = time()
+    with patch("my_func.generate_presigned_url") as patched:
+        patched.return_value = presigned_url
 
-    users = db_client.scan(TableName=dummy_table)["Items"]
+        assert my_handler(
+            event=valid_event,
+            context=lambda_context,
+        ) == LambdaAPIGWResponse(
+            cookies=[],
+            headers={"Content-Type": "application/json"},
+            body=json.dumps({"message": "OK"} | {"user_info": body}),
+            isBase64Encoded=False,
+            statusCode=200,
+        )
+        ended = time()
 
-    assert len(users) == 1
-    user = users[0]
-    print(user["accepted"])
-    assert get_value_from_attribute_type_def(user["username"]) == username
-    assert get_value_from_attribute_type_def(user["email"]) == email
-    assert started < get_value_from_attribute_type_def(user["accepted"]) < ended  # type: ignore
+        users = db_client.scan(TableName=dummy_table)["Items"]
+
+        assert len(users) == 1
+        user = users[0]
+        print(user["accepted"])
+        assert get_value_from_attribute_type_def(user["username"]) == username
+        assert get_value_from_attribute_type_def(user["email"]) == email
+        assert started < get_value_from_attribute_type_def(user["accepted"]) < ended  # type: ignore
+        assert get_value_from_attribute_type_def(user["presigned_url"]) == presigned_url
 
 
 def test_invalid_event(invalid_event, dummy_table, lambda_context):
