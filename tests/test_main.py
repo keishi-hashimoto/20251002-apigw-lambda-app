@@ -11,7 +11,7 @@ from os import environ
 from dataclasses import dataclass
 from unittest.mock import patch
 
-from helpers import assert_ses_backend
+from helpers import assert_ses_backend, assert_no_mail_is_send
 
 
 @pytest.fixture(scope="session")
@@ -164,38 +164,65 @@ def test_ok(
         assert get_value_from_attribute_type_def(user["presigned_url"]) == presigned_url
 
 
-def test_invalid_event(invalid_event, dummy_table, lambda_context):
+def test_invalid_event(invalid_event, dummy_table, lambda_context, ses_backend):
     patch_client(db_client)
-    assert my_handler(
-        event=invalid_event,
-        context=lambda_context,
-    ) == LambdaAPIGWResponse(
-        cookies=[],
-        headers={"Content-Type": "application/json"},
-        body=json.dumps({"error": "Bad Request"}),
-        isBase64Encoded=False,
-        statusCode=400,
-    )
+    patch_client(ses_client)
 
-    users = db_client.scan(TableName=dummy_table)["Items"]
-
-    assert len(users) == 0
-
-
-def test_valid_tablename(valid_event, dummy_table, lambda_context):
-    environ["TABLENAME"] = f"{dummy_table}_dummy"
-    patch_client(db_client)
-
-    try:
+    with assert_no_mail_is_send(backend=ses_backend):
         assert my_handler(
-            event=valid_event,
+            event=invalid_event,
             context=lambda_context,
         ) == LambdaAPIGWResponse(
             cookies=[],
             headers={"Content-Type": "application/json"},
-            body=json.dumps({"error": "Internal Server Error"}),
+            body=json.dumps({"error": "Bad Request"}),
             isBase64Encoded=False,
             statusCode=400,
         )
-    finally:
-        environ["TABLENAME"] = dummy_table
+
+        users = db_client.scan(TableName=dummy_table)["Items"]
+
+        assert len(users) == 0
+
+
+def test_invalid_tablename(
+    valid_event,
+    dummy_table,
+    lambda_context,
+    from_email,
+    presigned_url,
+    ses_backend,
+):
+    environ["TABLENAME"] = f"{dummy_table}_dummy"
+    patch_client(db_client)
+    patch_client(ses_client)
+
+    body = json.loads(valid_event["body"])
+    username = body["username"]
+    email = body["email"]
+
+    # DB への登録はメール送信よりも後なので、メール送信自体は行われる
+    with (
+        patch("my_func.generate_presigned_url") as patched,
+        assert_ses_backend(
+            ses_backend=ses_backend,
+            from_email=from_email,
+            to_email=email,
+            username=username,
+            presigned_url=presigned_url,
+        ),
+    ):
+        patched.return_value = presigned_url
+        try:
+            assert my_handler(
+                event=valid_event,
+                context=lambda_context,
+            ) == LambdaAPIGWResponse(
+                cookies=[],
+                headers={"Content-Type": "application/json"},
+                body=json.dumps({"error": "Internal Server Error"}),
+                isBase64Encoded=False,
+                statusCode=400,
+            )
+        finally:
+            environ["TABLENAME"] = dummy_table

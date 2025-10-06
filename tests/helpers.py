@@ -47,3 +47,12 @@ def assert_ses_backend(
             username=username,
             presigned_url=presigned_url,
         )
+
+
+@contextmanager
+def assert_no_mail_is_send(backend: SESBackend):
+    assert backend.sent_message_count == 0
+    try:
+        yield
+    finally:
+        assert backend.sent_message_count == 0
