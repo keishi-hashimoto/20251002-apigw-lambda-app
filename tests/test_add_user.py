@@ -5,13 +5,13 @@ from time import time
 from helpers import get_value_from_attribute_type_def
 
 
-def test_ok(dummy_table):
+def test_ok(dummy_table, presigned_url):
     patch_client(db_client)
     username = "testuser"
     email = "testmail@localhost.com"
 
     started = time()
-    add_user(username, email)
+    add_user(username, email, presigned_url)
     ended = time()
 
     users = db_client.scan(TableName=dummy_table)["Items"]
@@ -21,3 +21,4 @@ def test_ok(dummy_table):
     assert get_value_from_attribute_type_def(user["username"]) == username
     assert get_value_from_attribute_type_def(user["email"]) == email
     assert started < get_value_from_attribute_type_def(user["accepted"]) < ended  # type: ignore
+    assert get_value_from_attribute_type_def(user["presigned_url"]) == presigned_url
