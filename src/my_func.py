@@ -1,7 +1,7 @@
 from boto3 import client
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from aws_lambda_powertools import Logger, Tracer
+from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.parser import parse
 from aws_lambda_powertools.utilities.parser.envelopes import ApiGatewayV2Envelope
@@ -12,8 +12,9 @@ from functools import partial
 from os import environ
 from time import time
 
+from tracer import tracer
+
 logger = Logger()
-tracer = Tracer(service="20251002-apigw-lambda-app")
 
 
 class UserInfo(BaseModel):
