@@ -1,4 +1,5 @@
 from my_func import my_handler, LambdaAPIGWResponse, db_client
+from send_email import ses_client
 import json
 import pytest
 from datetime import datetime
@@ -9,6 +10,8 @@ from helpers import get_value_from_attribute_type_def
 from os import environ
 from dataclasses import dataclass
 from unittest.mock import patch
+
+from helpers import assert_ses_backend
 
 
 @pytest.fixture(scope="session")
@@ -111,14 +114,31 @@ def lambda_context():
     )
 
 
-def test_ok(valid_event, dummy_table, lambda_context, presigned_url):
+def test_ok(
+    valid_event,
+    dummy_table,
+    lambda_context,
+    presigned_url,
+    ses_backend,
+    from_email,
+):
     patch_client(db_client)
+    patch_client(ses_client)
     body = json.loads(valid_event["body"])
     username = body["username"]
     email = body["email"]
     started = time()
 
-    with patch("my_func.generate_presigned_url") as patched:
+    with (
+        patch("my_func.generate_presigned_url") as patched,
+        assert_ses_backend(
+            ses_backend=ses_backend,
+            from_email=from_email,
+            to_email=email,
+            username=username,
+            presigned_url=presigned_url,
+        ),
+    ):
         patched.return_value = presigned_url
 
         assert my_handler(
