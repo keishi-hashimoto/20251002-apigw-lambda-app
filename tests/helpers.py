@@ -2,6 +2,8 @@ from mypy_boto3_dynamodb.type_defs import AttributeValueTypeDef
 from moto.ses.models import SESBackend, Message
 from send_email import SUBJECT, BODY_TEMPLATE
 from contextlib import contextmanager
+from time import time
+from boto3 import client
 
 
 def get_value_from_attribute_type_def(val: AttributeValueTypeDef):
@@ -56,3 +58,25 @@ def assert_no_mail_is_send(backend: SESBackend):
         yield
     finally:
         assert backend.sent_message_count == 0
+
+
+@contextmanager
+def assert_dynamodb_record(
+    username: str,
+    email: str,
+    presigned_url: str,
+    tablename: str,
+):
+    started = time()
+    db_client = client("dynamodb")
+    assert db_client.scan(TableName=tablename)["Count"] == 0
+    yield
+    ended = time()
+    users = db_client.scan(TableName=tablename)["Items"]
+
+    assert len(users) == 1
+    user = users[0]
+    assert get_value_from_attribute_type_def(user["username"]) == username
+    assert get_value_from_attribute_type_def(user["email"]) == email
+    assert started < get_value_from_attribute_type_def(user["accepted"]) < ended  # type: ignore
+    assert get_value_from_attribute_type_def(user["presigned_url"]) == presigned_url
