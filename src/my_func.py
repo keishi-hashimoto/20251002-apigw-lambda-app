@@ -47,7 +47,27 @@ config = Config(
         "max_attempts": 2,
     },
 )
-db_client = client("dynamodb")
+db_client = client("dynamodb", config=config)
+
+# 署名付き URL の最新バージョンは v4 だが、boto3 のデフォルト値は v2 なので明示的な指定が必要
+s3_client = client("s3", config=Config(signature_version="s3v4"))
+
+
+@tracer.capture_method
+def generate_presigned_url() -> str:
+    bucket = environ["PRESENT_BUCKET"]
+    key = environ["PRESENT_KEY"]
+
+    logger.info("Start to generate presigned url")
+
+    presigned_url = s3_client.generate_presigned_url(
+        ClientMethod="get_object",
+        HttpMethod="GET",
+        Params={"Bucket": bucket, "Key": key},
+        ExpiresIn=10 * 60,  # デフォルトの 1 時間だと長すぎるので 10 分
+    )
+    logger.info("Finished to generate presigned url")
+    return presigned_url
 
 
 @tracer.capture_method
