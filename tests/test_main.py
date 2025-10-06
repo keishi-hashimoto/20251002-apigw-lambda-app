@@ -5,13 +5,11 @@ import pytest
 from datetime import datetime
 from moto.core.models import patch_client
 
-from time import time
-from helpers import get_value_from_attribute_type_def
 from os import environ
 from dataclasses import dataclass
 from unittest.mock import patch
 
-from helpers import assert_ses_backend, assert_no_mail_is_send
+from helpers import assert_ses_backend, assert_no_mail_is_send, assert_dynamodb_record
 
 
 @pytest.fixture(scope="session")
@@ -127,7 +125,6 @@ def test_ok(
     body = json.loads(valid_event["body"])
     username = body["username"]
     email = body["email"]
-    started = time()
 
     with (
         patch("my_func.generate_presigned_url") as patched,
@@ -137,6 +134,12 @@ def test_ok(
             to_email=email,
             username=username,
             presigned_url=presigned_url,
+        ),
+        assert_dynamodb_record(
+            username=username,
+            email=email,
+            presigned_url=presigned_url,
+            tablename=dummy_table,
         ),
     ):
         patched.return_value = presigned_url
@@ -151,17 +154,6 @@ def test_ok(
             isBase64Encoded=False,
             statusCode=200,
         )
-        ended = time()
-
-        users = db_client.scan(TableName=dummy_table)["Items"]
-
-        assert len(users) == 1
-        user = users[0]
-        print(user["accepted"])
-        assert get_value_from_attribute_type_def(user["username"]) == username
-        assert get_value_from_attribute_type_def(user["email"]) == email
-        assert started < get_value_from_attribute_type_def(user["accepted"]) < ended  # type: ignore
-        assert get_value_from_attribute_type_def(user["presigned_url"]) == presigned_url
 
 
 def test_invalid_event(invalid_event, dummy_table, lambda_context, ses_backend):
@@ -224,5 +216,8 @@ def test_invalid_tablename(
                 isBase64Encoded=False,
                 statusCode=400,
             )
+            users = db_client.scan(TableName=dummy_table)["Items"]
+
+            assert len(users) == 0
         finally:
             environ["TABLENAME"] = dummy_table
