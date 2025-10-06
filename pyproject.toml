@@ -13,7 +13,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "boto3-stubs-custom",
-    "moto[dynamodb]>=5.1.13",
+    "moto[dynamodb,ses]>=5.1.13",
     "mypy>=1.18.2",
     "pytest>=8.4.2",
 ]

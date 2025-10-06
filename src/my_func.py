@@ -1,7 +1,7 @@
 from boto3 import client
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from aws_lambda_powertools import Logger, Tracer
+from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.parser import parse
 from aws_lambda_powertools.utilities.parser.envelopes import ApiGatewayV2Envelope
@@ -12,8 +12,10 @@ from functools import partial
 from os import environ
 from time import time
 
+from tracer import tracer
+from send_email import send_email
+
 logger = Logger()
-tracer = Tracer(service="20251002-apigw-lambda-app")
 
 
 class UserInfo(BaseModel):
@@ -99,21 +101,42 @@ def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
         )
 
     logger.info(user_info)
+    username = user_info.username
+    email = user_info.email
 
     try:
-        presinged_url = generate_presigned_url()
+        presigned_url = generate_presigned_url()
     except ClientError as e:
         logger.error(f"failed to generate presigned url: {e.response}")
         return DEFAULT_RESUPONSE(
             body=json.dumps({"error": "Internal Server Error"}),
             statusCode=e.response["ResponseMetadata"]["HTTPStatusCode"],  # type: ignore
         )
+    except Exception as e:
+        logger.error(f"failed to generate presigned url: {e}")
+        return DEFAULT_RESUPONSE(
+            body=json.dumps({"error": "Internal Server Error"}), statusCode=500
+        )
+
+    try:
+        send_email(username, email, presigned_url)
+    except ClientError as e:
+        logger.error(f"failed to send email: {e.response}")
+        return DEFAULT_RESUPONSE(
+            body=json.dumps({"error": "Internal Server Error"}),
+            statusCode=e.response["ResponseMetadata"]["HTTPStatusCode"],  # type: ignore
+        )
+    except Exception as e:
+        logger.error(f"failed to send email: {e}")
+        return DEFAULT_RESUPONSE(
+            body=json.dumps({"error": "Internal Server Error"}), statusCode=500
+        )
 
     try:
         add_user(
             username=user_info.username,
             email=user_info.email,
-            presigned_url=presinged_url,
+            presigned_url=presigned_url,
         )
     except ClientError as e:
         logger.error(f"failed to register user: {e.response}")

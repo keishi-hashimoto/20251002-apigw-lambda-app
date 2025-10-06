@@ -3,6 +3,9 @@ from pytest import fixture
 from boto3 import client
 from os import environ
 
+from moto.core.models import DEFAULT_ACCOUNT_ID
+from moto.ses.models import ses_backends
+
 
 @fixture
 def mock_start():
@@ -30,3 +33,20 @@ def dummy_table(db_client):
 @fixture(scope="session")
 def presigned_url():
     return "https://dummy-bucket.s3.amazonaws.com/dummy.html?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=dummy%2F20251006%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251006T032350Z&X-Amz-Expires=600&X-Amz-SignedHeaders=host&X-Amz-Signature=*****************"
+
+
+@fixture()
+# mock_start との順序関係を固定するために引数として受け取るようにする
+def ses_backend(mock_start):
+    region = environ["AWS_DEFAULT_REGION"]
+    return ses_backends[DEFAULT_ACCOUNT_ID][region]
+
+
+@fixture
+def from_email():
+    return environ["FROM_EMAIL"]
+
+
+@fixture(autouse=True)
+def verify_email(mock_start, from_email):
+    client("ses").verify_email_identity(EmailAddress=from_email)
