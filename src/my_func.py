@@ -13,6 +13,7 @@ from os import environ
 from time import time
 
 from tracer import tracer
+from send_email import send_email
 
 logger = Logger()
 
@@ -100,6 +101,8 @@ def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
         )
 
     logger.info(user_info)
+    username = user_info.username
+    email = user_info.email
 
     try:
         presinged_url = generate_presigned_url()
@@ -108,6 +111,25 @@ def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
         return DEFAULT_RESUPONSE(
             body=json.dumps({"error": "Internal Server Error"}),
             statusCode=e.response["ResponseMetadata"]["HTTPStatusCode"],  # type: ignore
+        )
+    except Exception as e:
+        logger.error(f"failed to generate presigned url: {e}")
+        return DEFAULT_RESUPONSE(
+            body=json.dumps({"error": "Internal Server Error"}), statusCode=500
+        )
+
+    try:
+        send_email(username, email, presinged_url)
+    except ClientError as e:
+        logger.error(f"failed to send email: {e.response}")
+        return DEFAULT_RESUPONSE(
+            body=json.dumps({"error": "Internal Server Error"}),
+            statusCode=e.response["ResponseMetadata"]["HTTPStatusCode"],  # type: ignore
+        )
+    except Exception as e:
+        logger.error(f"failed to send email: {e}")
+        return DEFAULT_RESUPONSE(
+            body=json.dumps({"error": "Internal Server Error"}), statusCode=500
         )
 
     try:
