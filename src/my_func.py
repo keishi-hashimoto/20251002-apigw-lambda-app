@@ -71,7 +71,7 @@ def generate_presigned_url() -> str:
 
 
 @tracer.capture_method
-def add_user(username: str, email: EmailStr):
+def add_user(username: str, email: EmailStr, presigned_url: str):
     logger.info("Register user")
     tablename = environ["TABLENAME"]
     db_client.put_item(
@@ -81,7 +81,7 @@ def add_user(username: str, email: EmailStr):
             "email": {"S": email},
             # dynamodb では日時型の値は扱えないため、epoch 秒で保持する
             "accepted": {"N": f"{time()}"},
-            # TODO: 特典の DL URL
+            "presigned_url": {"S": presigned_url},
         },
     )
     logger.info("User registered")
@@ -101,7 +101,20 @@ def my_handler(event: dict, context: LambdaContext) -> LambdaAPIGWResponse:
     logger.info(user_info)
 
     try:
-        add_user(username=user_info.username, email=user_info.email)
+        presinged_url = generate_presigned_url()
+    except ClientError as e:
+        logger.error(f"failed to generate presigned url: {e.response}")
+        return DEFAULT_RESUPONSE(
+            body=json.dumps({"error": "Internal Server Error"}),
+            statusCode=e.response["ResponseMetadata"]["HTTPStatusCode"],  # type: ignore
+        )
+
+    try:
+        add_user(
+            username=user_info.username,
+            email=user_info.email,
+            presigned_url=presinged_url,
+        )
     except ClientError as e:
         logger.error(f"failed to register user: {e.response}")
         return DEFAULT_RESUPONSE(
